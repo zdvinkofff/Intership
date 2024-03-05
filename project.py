@@ -1,7 +1,6 @@
 import os
 import csv
 
-
 class PriceMachine():
 
     def __init__(self):
