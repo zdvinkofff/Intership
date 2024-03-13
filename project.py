@@ -7,28 +7,37 @@ class PriceMachine():
         self.data = []
 
     def load_prices(self, folder_path):
+        key_mapping = {
+            1: ['цена', 'товар', 'опт', 'масса'],
+            2: ['наименование', 'опт', 'вес', 'цена'],
+            3: ['название', 'вес', 'цена', 'опт'],
+            4: ['продукт', 'розница', 'опт', 'фасовка']
+        }
+
         for file in os.listdir(folder_path):
             if 'price' in file:
                 with open(os.path.join(folder_path, file), 'r', encoding='utf-8') as csv_file:
                     csv_reader = csv.DictReader(csv_file, delimiter=',')
                     for row in csv_reader:
-                        self.data.append(row)
-
-    def _search_product_price_weight(self, headers):
-        name_col = None
-        price_col = None
-        weight_col = None
-        for idx, header in enumerate(headers):
-            if header.lower() in ['название', 'продукт', 'товар', 'наименование']:
-                name_col = idx
-            elif header.lower() in ['цена', 'розница']:
-                price_col = idx
-            elif header.lower() in ['вес', 'масса', 'фасовка']:
-                weight_col = idx
-        return name_col, price_col, weight_col
+                        for key_set in key_mapping.values():
+                            data = {}
+                            for key in key_set:
+                                data[key] = row.get(key, '')
+                            self.data.append(data)
 
     def export_to_html(self, output_file_path=r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'):
         if self.data:
+            valid_data = [row for row in self.data if row.get('цена') and row.get('вес')]
+            unique_data = []
+            item_names = set()
+            for row in valid_data:
+                item_name = row.get('название')
+                if item_name not in item_names:
+                    unique_data.append(row)
+                    item_names.add(item_name)
+
+            sorted_data = sorted(unique_data, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
+
             with open(output_file_path, 'w', encoding='utf-8') as file:
                 file.write('''
                 <!DOCTYPE html>
@@ -39,22 +48,26 @@ class PriceMachine():
                 <body>
                     <table>
                         <tr>
-                            <th>Номер</th>
-                            <th>Название</th>
+                            <th>№</th>
+                            <th>Наименование</th>
                             <th>Цена</th>
-                            <th>Фасовка</th>
+                            <th>Вес</th>
                             <th>Файл</th>
                             <th>Цена за кг.</th>
                         </tr>
                 ''')
-                for idx, row in enumerate(self.data, start=1):
+                for idx, row in enumerate(sorted_data, start=1):
+                    item_name = row.get('название', '')
+                    price_per_kg = float(row.get('цена', 0)) / float(row.get('вес', 1))
                     file.write(
-                        f"<tr><td>{idx}</td><td>{row.get('название', '')}</td><td>{row.get('цена', '')}</td><td>{row.get('вес', '')}</td><td>{row.get('файл', '')}</td><td>{float(row.get('цена', 0)) / float(row.get('вес', 1)):.1f}</td></tr>")
+                        f"<tr><td>{idx}</td><td>{item_name}</td><td>{row.get('цена', '')}</td><td>{row.get('вес', '')}</td><td>{row.get('файл', '')}</td><td>{price_per_kg:.1f}</td></tr>"
+                    )
                 file.write('''
                     </table>
                 </body>
                 </html>
                 ''')
+
             print(f"HTML файл успешно создан: {output_file_path}")
         else:
             print("Нет данных для сохранения в HTML файл.")
@@ -80,24 +93,27 @@ class PriceMachine():
 pm = PriceMachine()
 folder_path = r'C:\Users\Denis\PycharmProjects\pythonProject2'
 
-pm.load_prices(folder_path)
-print('Данные успешно загружены.')
+try:
+    pm.load_prices(folder_path)
+    print('Данные успешно загружены.')
 
-while True:
-    user_input = input("Введите фрагмент наименования товара для поиска (или 'exit' для выхода): ")
-    if user_input.lower() == 'exit':
-        print("Работа завершена.")
-        break
+    while True:
+        user_input = input("Введите фрагмент наименования товара для поиска (или 'exit' для выхода): ")
+        if user_input.lower() == 'exit':
+            print("Работа завершена.")
+            break
 
-    search_results = pm.find_text(user_input)
+        search_results = pm.find_text(user_input)
+        search_results.sort(key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
 
-    if search_results:
-        print("№   наименование               цена вес   файл   цена за кг.")
-        for idx, result in enumerate(search_results, start=1):
-            print(
-                f"{idx:<3} {result.get('название', ''):<30} {result.get('цена', ''):<5} {result.get('вес', ''):<4} {result.get('файл', ''):<10} {float(result.get('цена', 0)) / float(result.get('вес', 1)):<6.1f}")
-    else:
-        print("Нет результатов по вашему запросу.")
+        if search_results:
+            print("№   Наименование                    Цена  Вес   Файл       Цена за кг.")
+            for idx, result in enumerate(search_results, start=1):
+                print(f"{idx:<3} {result.get('название', ''):<30} {result.get('цена', ''):<5} {result.get('вес', ''):<4} {result.get('файл', ''):<10} {float(result.get('цена', 0)) / float(result.get('вес', 1)):<6.1f}")
+        else:
+            print("Нет результатов по вашему запросу.")
 
-output_file_path = r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'
-pm.export_to_html(output_file_path)
+    output_file_path = r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'
+    pm.export_to_html(output_file_path)
+except Exception as e:
+    print(f"Произошла ошибка: {e}")
