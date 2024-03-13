@@ -25,14 +25,15 @@ class PriceMachine():
                                 data[key] = row.get(key, '')
                             self.data.append(data)
 
-    def export_to_html(self, output_file_path=r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'):
+    def export_to_html(self, output_file_path=r'C:\Users\DenisPycharmProjects\pythonProject2\output.html'):
         if self.data:
-            valid_data = [row for row in self.data if row.get('цена') and row.get('вес')]
+            valid_data = [row for row in self.data if row.get('цена') and row.get('вес') and row.get('название')]
+
             unique_data = []
             item_names = set()
             for row in valid_data:
                 item_name = row.get('название')
-                if item_name not in item_names:
+                if item_name and item_name not in item_names:  # Check for non-empty 'название' before adding
                     unique_data.append(row)
                     item_names.add(item_name)
 
