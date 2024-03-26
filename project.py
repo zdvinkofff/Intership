@@ -8,37 +8,37 @@ class PriceMachine():
 
     def load_prices(self, folder_path):
         key_mapping = {
-            1: ['цена', 'товар', 'опт', 'масса'],
-            2: ['наименование', 'опт', 'вес', 'цена'],
-            3: ['название', 'вес', 'цена', 'опт'],
-            4: ['продукт', 'розница', 'опт', 'фасовка']
+            'название': ['название', 'продукт', 'товар', 'наименование'],
+            'цена': ['цена', 'розница'],
+            'вес': ['фасовка', 'масса', 'вес']
         }
 
         for file in os.listdir(folder_path):
-            if 'price' in file:
+            if file.endswith('.csv'):
                 with open(os.path.join(folder_path, file), 'r', encoding='utf-8') as csv_file:
                     csv_reader = csv.DictReader(csv_file, delimiter=',')
                     for row in csv_reader:
-                        for key_set in key_mapping.values():
-                            data = {}
-                            for key in key_set:
-                                data[key] = row.get(key, '')
-                            self.data.append(data)
+                        data = {'файл': file}  
+                        for key, possible_keys in key_mapping.items():
+                            for possible_key in possible_keys:
+                                if possible_key in row:
+                                    data[key] = row[possible_key]
+                                    break
+                        self.data.append(data)
 
-    def export_to_html(self, output_file_path=r'C:\Users\DenisPycharmProjects\pythonProject2\output.html'):
+    def export_to_console(self):
+        for idx, product in enumerate(self.data, 1):
+            print(
+                f"{idx}. Название: {product.get('название')}, Цена: {product.get('цена')}, Вес: {product.get('вес')}, Файл: {product.get('файл')}")
+
+    def search_product(self, search_query):
+        results = [product for product in self.data if search_query.lower() in product.get('название', '').lower()]
+        sorted_results = sorted(results, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
+        return sorted_results
+
+    def export_to_html(self, output_file_path=r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'):
         if self.data:
-            valid_data = [row for row in self.data if row.get('цена') and row.get('вес') and row.get('название')]
-
-            unique_data = []
-            item_names = set()
-            for row in valid_data:
-                item_name = row.get('название')
-                if item_name and item_name not in item_names:  # Check for non-empty 'название' before adding
-                    unique_data.append(row)
-                    item_names.add(item_name)
-
-            sorted_data = sorted(unique_data, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
-
+            sorted_data = sorted(self.data, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
             with open(output_file_path, 'w', encoding='utf-8') as file:
                 file.write('''
                 <!DOCTYPE html>
@@ -68,53 +68,47 @@ class PriceMachine():
                 </body>
                 </html>
                 ''')
-
             print(f"HTML файл успешно создан: {output_file_path}")
         else:
-            print("Нет данных для сохранения в HTML файл.")
+            print("Нет данных для экспорта в HTML файл.")
 
     def find_text(self, text):
-        results = []
-        for row in self.data:
-            for key, value in row.items():
-                if 'название' in key.lower() and text.lower() in value.lower():
-                    results.append(row)
+        results = [row for row in self.data if 'название' in row and text.lower() in row['название'].lower()]
+        sorted_results = sorted(results, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
 
-        if results:
+        if sorted_results:
             print("Результаты поиска:")
-            for idx, result in enumerate(results, start=1):
+            for idx, result in enumerate(sorted_results, 1):
                 print(
-                    f"Название: {result.get('название', '')}, Цена: {result.get('цена', '')}, Вес: {result.get('вес', '')}, Файл: {result.get('файл', '')}")
+                    f"{idx}. Название: {result.get('название')}, Цена: {result.get('цена')}, Вес: {result.get('вес')}, Файл: {result.get('файл')}, Цена за кг: {float(result.get('цена', 0)) / float(result.get('вес', 1))}")
         else:
             print("Нет результатов по вашему запросу.")
 
-        return results
+        return sorted_results
 
-
-pm = PriceMachine()
-folder_path = r'C:\Users\Denis\PycharmProjects\pythonProject2'
+price_machine = PriceMachine()
+price_machine.load_prices(r'C:\Users\Denis\PycharmProjects\pythonProject2')
 
 try:
-    pm.load_prices(folder_path)
-    print('Данные успешно загружены.')
-
     while True:
-        user_input = input("Введите фрагмент наименования товара для поиска (или 'exit' для выхода): ")
-        if user_input.lower() == 'exit':
+        search_query = input("Введите фрагмент наименования товара для поиска (или 'exit' для выхода): ")
+
+        if search_query.lower() == 'exit':
+            price_machine.export_to_html()
             print("Работа завершена.")
             break
 
-        search_results = pm.find_text(user_input)
-        search_results.sort(key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
+        results = price_machine.search_product(search_query)
 
-        if search_results:
-            print("№   Наименование                    Цена  Вес   Файл       Цена за кг.")
-            for idx, result in enumerate(search_results, start=1):
-                print(f"{idx:<3} {result.get('название', ''):<30} {result.get('цена', ''):<5} {result.get('вес', ''):<4} {result.get('файл', ''):<10} {float(result.get('цена', 0)) / float(result.get('вес', 1)):<6.1f}")
+        if results:
+            sorted_results = sorted(results, key=lambda x: float(x.get('цена', 0)) / float(x.get('вес', 1)))
+            for idx, result in enumerate(sorted_results, 1):
+                print(
+                    f"{idx}. Название: {result.get('название')}, Цена: {result.get('цена')}, Вес: {result.get('вес')}, Файл: {result.get('файл')}, Цена за кг: {float(result.get('цена', 0)) / float(result.get('вес', 1))}")
         else:
             print("Нет результатов по вашему запросу.")
+            print(f"Вы искали: {search_query}")
 
-    output_file_path = r'C:\Users\Denis\PycharmProjects\pythonProject2\output.html'
-    pm.export_to_html(output_file_path)
+
 except Exception as e:
     print(f"Произошла ошибка: {e}")
