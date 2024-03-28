@@ -18,7 +18,7 @@ class PriceMachine():
                 with open(os.path.join(folder_path, file), 'r', encoding='utf-8') as csv_file:
                     csv_reader = csv.DictReader(csv_file, delimiter=',')
                     for row in csv_reader:
-                        data = {'файл': file}  
+                        data = {'файл': file}
                         for key, possible_keys in key_mapping.items():
                             for possible_key in possible_keys:
                                 if possible_key in row:
@@ -42,8 +42,9 @@ class PriceMachine():
             with open(output_file_path, 'w', encoding='utf-8') as file:
                 file.write('''
                 <!DOCTYPE html>
-                <html>
+                <html lang='ru'>
                 <head>
+                    <meta charset='UTF-8'>
                     <title>Позиции продуктов</title>
                 </head>
                 <body>
@@ -112,3 +113,4 @@ try:
 
 except Exception as e:
     print(f"Произошла ошибка: {e}")
+
